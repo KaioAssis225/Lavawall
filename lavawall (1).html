@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloudflare & Lâmpadas de Lava — O Muro da Entropia</title>
+<style>
+  :root {
+    --orange: #f48120;
+    --dark: #0d0d0d;
+    --panel: rgba(17, 24, 39, 0.72);
+    --card: rgba(31, 41, 55, 0.65);
+    --card-solid: #1f2937;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --green: #10b981;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--dark);
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  /* ───── HERO ───── */
+  #hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 60%, #1a0a00 0%, #0d0d0d 70%);
+    text-align: center;
+    padding: 2rem;
+  }
+
+  #hero-lamps {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 55%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 18px;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  .hero-lamp { display: flex; flex-direction: column; align-items: center; }
+  .hero-lamp .body {
+    width: 28px;
+    background: linear-gradient(to bottom, #1a1a1a 0%, #111 100%);
+    border-radius: 6px 6px 0 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-lamp .glow-base {
+    width: 36px; height: 10px;
+    border-radius: 50%;
+    margin-top: 2px;
+  }
+
+  .hero-content { position: relative; z-index: 2; }
+  .cf-logo { font-size: 3rem; margin-bottom: 0.5rem; }
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #ffffff 0%, var(--orange) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    color: var(--muted);
+    max-width: 600px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.7;
+  }
+  .scroll-cta {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: var(--orange);
+    color: #fff;
+    border: none;
+    padding: 0.85rem 2rem;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 30px rgba(244,129,32,0.4);
+  }
+  .scroll-cta:hover { transform: translateY(-3px); box-shadow: 0 0 50px rgba(244,129,32,0.6); }
+
+  /* ───── SECTIONS ───── */
+  section {
+    padding: 5rem 1.5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .section-tag {
+    display: inline-block;
+    background: rgba(244,129,32,0.15);
+    color: var(--orange);
+    border: 1px solid rgba(244,129,32,0.3);
+    border-radius: 999px;
+    padding: 0.3rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  h2 {
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+  }
+
+  .lead {
+    font-size: 1.1rem;
+    color: var(--muted);
+    line-height: 1.8;
+    max-width: 720px;
+  }
+
+  /* ───── CARDS (glassmorphism) ───── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 3rem;
+  }
+
+  .card {
+    background: var(--card);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 1.75rem;
+    transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  .card:hover {
+    border-color: rgba(244,129,32,0.5);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(244,129,32,0.12);
+  }
+  .card-icon { font-size: 2rem; margin-bottom: 1rem; }
+  .card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .card p { color: var(--muted); font-size: 0.95rem; line-height: 1.7; }
+
+  /* ───── LAVA LAMP DEMO ───── */
+  #demo {
+    background: var(--panel);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-radius: 24px;
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.45);
+    padding: 2.5rem;
+    margin: 3rem 0;
+  }
+
+  #demo h2 { margin-bottom: 0.5rem; }
+  #demo .lead { margin-bottom: 2rem; }
+
+  #lamp-stage {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+
+  .lamp-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .lamp {
+    width: 60px;
+    height: 180px;
+    background: linear-gradient(to bottom, #1c1c1c, #111);
+    border-radius: 12px 12px 8px 8px;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid #2d2d2d;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+  }
+
+  .lamp-cap {
+    width: 60px; height: 14px;
+    border-radius: 6px 6px 0 0;
+    background: #374151;
+    border: 2px solid #4b5563;
+    border-bottom: none;
+  }
+
+  .lamp-base {
+    width: 60px; height: 14px;
+    border-radius: 0 0 6px 6px;
+    background: #374151;
+    border: 2px solid #4b5563;
+    border-top: none;
+  }
+
+  .lamp-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: center;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(4px);
+    /* CSS transition para suavizar entre frames em telas de alta taxa */
+    transition: left 0.08s linear, bottom 0.08s linear, border-radius 0.12s ease;
+    will-change: left, bottom, border-radius;
+  }
+
+  /* ───── PIXEL CAPTURE ───── */
+  #capture-row {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  #pixel-grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 2px;
+    background: #0d0d0d;
+    border-radius: 8px;
+    padding: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+  }
+
+  .pixel-cell {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    transition: background 0.3s;
+  }
+
+  #capture-info {
+    flex: 1;
+    min-width: 200px;
+  }
+  #capture-info h4 { font-size: 0.9rem; color: var(--orange); margin-bottom: 0.5rem; font-weight: 700; }
+  #capture-info p { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+
+  /* ───── BIT STREAM ───── */
+  #bit-stream-wrap {
+    background: rgba(0,0,0,0.5);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+
+  #bit-stream-label {
+    font-size: 0.7rem;
+    color: var(--orange);
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.1em;
+  }
+
+  #bit-stream {
+    word-break: break-all;
+    line-height: 1.6;
+    color: var(--green);
+    min-height: 40px;
+  }
+
+  /* ───── ENTROPY METER ───── */
+  #entropy-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .metric-box {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .metric-box .label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.4rem;
+  }
+  .metric-box .value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    font-family: 'Courier New', monospace;
+  }
+  .metric-box .value.green { color: var(--green); }
+  .metric-box .value.orange { color: var(--orange); }
+  .metric-box .value.blue { color: var(--blue); }
+  .metric-box .value.purple { color: var(--purple); }
+
+  .entropy-bar-wrap { grid-column: 1 / -1; }
+  .entropy-bar-track {
+    height: 10px;
+    background: rgba(31,41,55,0.8);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 0.4rem;
+  }
+  .entropy-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--orange), #facc15);
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  /* ───── CONTROL ───── */
+  #ctrl-btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: var(--orange);
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.75rem;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+  #ctrl-btn:hover { transform: scale(1.04); }
+
+  #snapshot-btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: transparent;
+    color: var(--orange);
+    border: 2px solid var(--orange);
+    padding: 0.7rem 1.5rem;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: 0.75rem;
+    transition: background 0.2s;
+  }
+  #snapshot-btn:hover { background: rgba(244,129,32,0.1); }
+
+  /* ───── PIPELINE ───── */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 3rem 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .pipe-step {
+    background: var(--card);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    text-align: center;
+    flex: 1;
+    min-width: 140px;
+    max-width: 200px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  }
+  .pipe-step .icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
+  .pipe-step .name { font-size: 0.85rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .pipe-step .desc { font-size: 0.75rem; color: var(--muted); }
+
+  .pipe-arrow {
+    font-size: 1.5rem;
+    color: var(--orange);
+    padding: 0 0.25rem;
+    flex-shrink: 0;
+  }
+
+  /* ───── HASH DEMO ───── */
+  #hash-demo {
+    background: var(--card);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-top: 3rem;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  #hash-demo h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; }
+  .hash-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .hash-label { font-size: 0.75rem; color: var(--muted); width: 80px; flex-shrink: 0; }
+  .hash-val {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    background: rgba(0,0,0,0.45);
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    color: var(--green);
+    word-break: break-all;
+    flex: 1;
+    min-width: 0;
+  }
+  .hash-val.orange { color: var(--orange); }
+
+  /* ───── WHY RANDOM ───── */
+  #why-section { margin-top: 0; }
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+  @media (max-width: 640px) { .comparison { grid-template-columns: 1fr; } }
+
+  .cmp-box {
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .cmp-box.bad { border-color: #ef4444; background: rgba(239,68,68,0.07); }
+  .cmp-box.good { border-color: var(--green); background: rgba(16,185,129,0.07); }
+  .cmp-box h4 { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; }
+  .cmp-box.bad h4 { color: #ef4444; }
+  .cmp-box.good h4 { color: var(--green); }
+  .cmp-box ul { list-style: none; }
+  .cmp-box ul li { font-size: 0.9rem; color: var(--muted); padding: 0.3rem 0; display: flex; gap: 0.5rem; line-height: 1.5; }
+  .cmp-box.bad ul li::before { content: "✗"; color: #ef4444; flex-shrink: 0; }
+  .cmp-box.good ul li::before { content: "✓"; color: var(--green); flex-shrink: 0; }
+
+  /* ───── FOOTER ───── */
+  footer {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  footer a { color: var(--orange); text-decoration: none; }
+
+  /* ───── ANIMATIONS ───── */
+  @keyframes float-up {
+    0%   { transform: translateY(0px) scale(1); border-radius: 60% 40% 55% 45%; }
+    25%  { transform: translateY(-30px) scale(1.05); border-radius: 45% 55% 40% 60%; }
+    50%  { transform: translateY(-60px) scale(0.95); border-radius: 55% 45% 60% 40%; }
+    75%  { transform: translateY(-30px) scale(1.08); border-radius: 40% 60% 45% 55%; }
+    100% { transform: translateY(0px) scale(1); border-radius: 60% 40% 55% 45%; }
+  }
+
+  @keyframes float-down {
+    0%   { transform: translateY(-40px) scale(1); border-radius: 45% 55% 60% 40%; }
+    25%  { transform: translateY(-10px) scale(0.95); border-radius: 60% 40% 45% 55%; }
+    50%  { transform: translateY(10px) scale(1.05); border-radius: 40% 60% 55% 45%; }
+    75%  { transform: translateY(-20px) scale(0.98); border-radius: 55% 45% 40% 60%; }
+    100% { transform: translateY(-40px) scale(1); border-radius: 45% 55% 60% 40%; }
+  }
+
+  @keyframes scanline {
+    0%   { top: 0; }
+    100% { top: 100%; }
+  }
+
+  .scan-effect::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    height: 3px;
+    background: rgba(244,129,32,0.6);
+    top: 0;
+    animation: scanline 2s linear infinite;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<div id="hero">
+  <div id="hero-lamps" aria-hidden="true"></div>
+  <div class="hero-content">
+    <div class="cf-logo">🌋</div>
+    <h1>Por que a Cloudflare usa<br>Lâmpadas de Lava?</h1>
+    <p class="hero-sub">
+      No coração da criptografia que protege uma parcela significativa da internet está um corredor de lâmpadas de lava coloridas — e isso não é brincadeira.
+    </p>
+    <a href="#why" class="scroll-cta">Descobrir o segredo ↓</a>
+  </div>
+</div>
+
+<!-- ═══════════════ POR QUÊ ALEATORIEDADE? ═══════════════ -->
+<section id="why">
+  <div class="section-tag">O problema fundamental</div>
+  <h2>Criptografia depende de<br><span style="color:var(--orange)">aleatoriedade verdadeira</span></h2>
+  <p class="lead">
+    Para criar chaves criptográficas seguras — aquelas que protegem seu banco, seus e-mails, suas compras — precisamos de números que ninguém jamais conseguirá prever. E aí está o problema: computadores são máquinas determinísticas.
+  </p>
+
+  <div class="comparison" id="why-section">
+    <div class="cmp-box bad">
+      <h4>⚠ Pseudo-aleatoriedade (PRNG)</h4>
+      <ul>
+        <li>Gerada por algoritmo matemático</li>
+        <li>Determinística: mesma semente = mesma sequência</li>
+        <li>Se o atacante descobrir a semente, quebra tudo</li>
+        <li>Parece aleatória, mas tem padrão</li>
+        <li>Vulnerável a ataques de previsão</li>
+      </ul>
+    </div>
+    <div class="cmp-box good">
+      <h4>✦ Entropia verdadeira (TRNG)</h4>
+      <ul>
+        <li>Vem de fenômenos físicos imprevisíveis</li>
+        <li>Impossível de reproduzir ou prever</li>
+        <li>Mesmo com acesso total ao sistema</li>
+        <li>Base segura para gerar chaves criptográficas</li>
+        <li>Lâmpadas de lava = fonte de entropia física</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="cards" style="margin-top:2rem">
+    <div class="card">
+      <div class="card-icon">🎲</div>
+      <h3>Entropia = Imprevisibilidade</h3>
+      <p>Em criptografia, "entropia" mede o quão imprevisível é um dado. Quanto maior a entropia, mais segura a chave gerada a partir dela.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔑</div>
+      <h3>Chaves TLS/SSL</h3>
+      <p>Cada conexão HTTPS que você faz gera uma chave única. A Cloudflare processa trilhões dessas por dia — todas precisam de boa entropia.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🏢</div>
+      <h3>O Muro da Entropia</h3>
+      <p>No escritório da Cloudflare em São Francisco há um corredor com mais de 100 lâmpadas de lava filmadas continuamente por câmeras.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ COMO FUNCIONA ═══════════════ -->
+<section>
+  <div class="section-tag">O mecanismo</div>
+  <h2>Como a lâmpada de lava<br>vira uma chave criptográfica?</h2>
+  <p class="lead">O movimento caótico da cera aquecida é fisicamente impossível de prever — nem mesmo com a física mais precisa. Esse caos é capturado, digitalizado e usado para semear o gerador de números.</p>
+
+  <div class="pipeline">
+    <div class="pipe-step">
+      <div class="icon">🌋</div>
+      <div class="name">Lâmpadas de Lava</div>
+      <div class="desc">Cera em movimento caótico e imprevisível</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step">
+      <div class="icon">📷</div>
+      <div class="name">Câmera</div>
+      <div class="desc">Captura frames em alta resolução continuamente</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step">
+      <div class="icon">🔢</div>
+      <div class="name">Pixels → Bits</div>
+      <div class="desc">Valores RGB de cada pixel formam fluxo de bits</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step">
+      <div class="icon">#️⃣</div>
+      <div class="name">Hash SHA-512</div>
+      <div class="desc">Bits são misturados e condensados em semente</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step">
+      <div class="icon">🔒</div>
+      <div class="name">Chave Criptográfica</div>
+      <div class="desc">Seed alimenta CSPRNG para gerar chaves TLS</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ DEMO INTERATIVA ═══════════════ -->
+<section style="max-width:1100px; margin: 0 auto; padding: 0 1.5rem 5rem;">
+<div id="demo">
+  <div class="section-tag">Simulação interativa</div>
+  <h2>Veja o processo acontecendo</h2>
+  <p class="lead">Observe como o movimento das lâmpadas gera pixels, que viram bits, que viram entropia para a criptografia.</p>
+
+  <div id="lamp-stage"></div>
+
+  <div id="capture-row">
+    <div>
+      <div id="bit-stream-label">▸ CAPTURA DE PIXELS (amostra 16×8)</div>
+      <div id="pixel-grid"></div>
+    </div>
+    <div id="capture-info">
+      <h4>📷 Como a câmera captura</h4>
+      <p>
+        Cada pixel da imagem tem valores de Vermelho, Verde e Azul (0–255). Como a posição exata de cada bolha é imprevisível, esses valores mudam constantemente — é aleatoriedade física sendo digitalizada.
+      </p>
+    </div>
+  </div>
+
+  <div id="entropy-panel">
+    <div class="metric-box">
+      <div class="label">Frames Capturados</div>
+      <div class="value green" id="metric-frames">0</div>
+    </div>
+    <div class="metric-box">
+      <div class="label">Bits Coletados</div>
+      <div class="value orange" id="metric-bits">0</div>
+    </div>
+    <div class="metric-box">
+      <div class="label">Entropia Estimada</div>
+      <div class="value blue" id="metric-entropy">0.00 bit/px</div>
+    </div>
+    <div class="metric-box">
+      <div class="label">Seeds Geradas</div>
+      <div class="value purple" id="metric-seeds">0</div>
+    </div>
+    <div class="metric-box entropy-bar-wrap" style="text-align:left">
+      <div class="label">Nível de Entropia Acumulada</div>
+      <div class="entropy-bar-track">
+        <div class="entropy-bar-fill" id="entropy-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bit-stream-wrap">
+    <div id="bit-stream-label">▸ FLUXO DE BITS BRUTO</div>
+    <div id="bit-stream">Clique em "Ligar Lâmpadas" para iniciar...</div>
+  </div>
+
+  <div id="hash-demo">
+    <h3>🔑 Semente criptográfica (simulada)</h3>
+    <div class="hash-row">
+      <span class="hash-label">Entropia Raw</span>
+      <span class="hash-val orange" id="hash-raw">—</span>
+    </div>
+    <div class="hash-row">
+      <span class="hash-label">SHA-256</span>
+      <span class="hash-val" id="hash-256">—</span>
+    </div>
+    <div class="hash-row">
+      <span class="hash-label">Chave AES-256</span>
+      <span class="hash-val" id="hash-key">—</span>
+    </div>
+  </div>
+
+  <div style="margin-top:1.5rem; display:flex; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+    <button id="ctrl-btn" onclick="toggleSimulation()">🌋 Ligar Lâmpadas</button>
+    <button id="snapshot-btn" onclick="takeSnapshot()">📷 Capturar Frame</button>
+    <span id="status-text" style="font-size:0.85rem; color:var(--muted)">Simulação parada</span>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ CURIOSIDADES ═══════════════ -->
+<section>
+  <div class="section-tag">Curiosidades</div>
+  <h2>Fatos sobre o<br>Muro da Entropia</h2>
+  <p class="lead">A parede de lâmpadas de lava da Cloudflare, chamada <em>"Wall of Entropy"</em>, não é a única fonte de aleatoriedade — mas é a mais famosa e fotogênica.</p>
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">🏙️</div>
+      <h3>Três continentes</h3>
+      <p>Além das lâmpadas de lava em San Francisco, a Cloudflare usa pêndulos duplos em Londres e suspensões geotérmicas em Cingapura. Fontes independentes elevam a segurança.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌀</div>
+      <h3>Caos determinístico</h3>
+      <p>O movimento da cera segue leis físicas, mas é sensível às condições iniciais (teoria do caos). Pequenas variações de temperatura produzem trajetórias completamente diferentes.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎭</div>
+      <h3>Atacantes são bem-vindos</h3>
+      <p>Qualquer pessoa pode entrar no lobby e ver as lâmpadas. Mas mesmo com câmeras próprias, seria impossível replicar a captura interna com timing e ângulo exatos.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h3>Mistura com outras fontes</h3>
+      <p>Os bits das lâmpadas são combinados via XOR com ruído de hardware (Intel RDRAND), timing de interrupções de sistema e dados de rede — tornando o pool ainda mais imprevisível.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📡</div>
+      <h3>Redundância geográfica</h3>
+      <p>Se uma fonte falhar ou for comprometida, as outras continuam operando. Nenhum ponto único de falha pode derrubar a geração de entropia global.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔬</div>
+      <h3>Verificável e auditável</h3>
+      <p>A Cloudflare publicou papers detalhando a arquitetura. Qualquer criptógrafo pode auditar o sistema — a segurança vem do processo, não do segredo da implementação.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>Baseado no sistema real da Cloudflare — <em>LavaRand</em></p>
+  <p style="margin-top:0.5rem">Leia mais: <a href="#" onclick="return false">blog.cloudflare.com/lavarand-in-production</a></p>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  HERO — lampinhas decorativas
+// ═══════════════════════════════════════════════════
+(function buildHeroLamps() {
+  const colors = [
+    ['#ff4500','#ff6a00'], ['#ff006e','#ff4d9d'], ['#7400b8','#9d4edd'],
+    ['#0077b6','#00b4d8'], ['#38b000','#70e000'], ['#ffd60a','#ffbe0b'],
+    ['#ff4500','#ff8c00'], ['#0096c7','#48cae4'], ['#d62828','#f77f00'],
+    ['#3a0ca3','#7209b7'], ['#00b4d8','#90e0ef'], ['#606c38','#dda15e'],
+  ];
+  const stage = document.getElementById('hero-lamps');
+  colors.forEach(([c1, c2]) => {
+    const h = 80 + Math.random() * 120;
+    const div = document.createElement('div');
+    div.className = 'hero-lamp';
+    div.innerHTML = `
+      <div class="body" style="height:${h}px; box-shadow: 0 0 20px ${c1}55, inset 0 0 15px ${c1}33;">
+        <div class="blob" style="width:${14+Math.random()*8}px; height:${14+Math.random()*8}px;
+          background:${c1}; bottom:10px; left:50%; transform:translateX(-50%);
+          animation: float-up ${3+Math.random()*3}s ease-in-out infinite ${Math.random()*2}s;"></div>
+        <div class="blob" style="width:${10+Math.random()*8}px; height:${10+Math.random()*8}px;
+          background:${c2}; bottom:40px; left:${20+Math.random()*20}%;
+          animation: float-down ${4+Math.random()*3}s ease-in-out infinite ${Math.random()*2}s;"></div>
+      </div>
+      <div class="glow-base" style="background:radial-gradient(ellipse, ${c1}88, transparent); filter:blur(4px);"></div>
+    `;
+    stage.appendChild(div);
+  });
+})();
+
+// ═══════════════════════════════════════════════════
+//  SIMULAÇÃO PRINCIPAL
+// ═══════════════════════════════════════════════════
+const LAMP_CONFIG = [
+  { colors: ['#ff4500','#ff8c00','#ffd700'], label: 'Laranja' },
+  { colors: ['#7400b8','#9d4edd','#c77dff'], label: 'Violeta' },
+  { colors: ['#0077b6','#00b4d8','#90e0ef'], label: 'Azul' },
+  { colors: ['#d62828','#f77f00','#fcbf49'], label: 'Vermelho' },
+  { colors: ['#38b000','#70e000','#aacc00'], label: 'Verde' },
+];
+
+const GRID_W = 16, GRID_H = 8;
+// dt travado em 1.5 — evita trancos em telas 120Hz e em spikes de GC mobile
+const MAX_DT = 1.5;
+
+let running = false;
+let captureInterval = null;
+let hashInterval = null;
+
+let frames = 0, totalBits = 0, seeds = 0;
+let entropyAccum = 0;
+let rawBits = '';
+
+const lampBlobs = LAMP_CONFIG.map((cfg) => {
+  const blobs = [];
+  for (let b = 0; b < 3; b++) {
+    blobs.push({
+      y: 20 + Math.random() * 140,
+      vy: (Math.random() - 0.5) * 0.8,
+      x: 10 + Math.random() * 40,
+      vx: (Math.random() - 0.5) * 0.2,
+      size: 14 + Math.random() * 16,
+      phase: Math.random() * Math.PI * 2,
+      color: cfg.colors[b % cfg.colors.length],
+    });
+  }
+  return blobs;
+});
+
+// Build lamp DOM
+const lampStage = document.getElementById('lamp-stage');
+const lampElements = LAMP_CONFIG.map((cfg, li) => {
+  const wrap = document.createElement('div');
+  wrap.className = 'lamp-wrap';
+  const cap  = document.createElement('div'); cap.className = 'lamp-cap';
+  const body = document.createElement('div'); body.className = 'lamp scan-effect';
+  body.style.boxShadow = `0 0 25px ${cfg.colors[0]}44, inset 0 0 20px rgba(0,0,0,0.6)`;
+  const base = document.createElement('div'); base.className = 'lamp-base';
+  const label = document.createElement('div'); label.className = 'lamp-label';
+  label.textContent = cfg.label;
+
+  const blobEls = lampBlobs[li].map(b => {
+    const el = document.createElement('div');
+    el.className = 'blob';
+    el.style.width  = b.size + 'px';
+    el.style.height = b.size + 'px';
+    el.style.background = b.color;
+    el.style.boxShadow = `0 0 ${b.size}px ${b.color}88`;
+    body.appendChild(el);
+    return el;
+  });
+
+  wrap.appendChild(cap);
+  wrap.appendChild(body);
+  wrap.appendChild(base);
+  wrap.appendChild(label);
+  lampStage.appendChild(wrap);
+  return { body, blobEls };
+});
+
+// Build pixel grid
+const pixelGrid = document.getElementById('pixel-grid');
+const pixelCells = [];
+for (let i = 0; i < GRID_W * GRID_H; i++) {
+  const cell = document.createElement('div');
+  cell.className = 'pixel-cell';
+  cell.style.background = '#111';
+  pixelGrid.appendChild(cell);
+  pixelCells.push(cell);
+}
+
+function hexColor(r, g, b) {
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
+function physicsStep(dt) {
+  // dt já vem travado em MAX_DT pelo loop de animação
+  lampBlobs.forEach((blobs, li) => {
+    blobs.forEach((b, bi) => {
+      const heatForce = b.y > 130 ?  0.012 : (b.y < 30 ? -0.008 : 0);
+      const buoyancy  = b.y > 100 ?  0.006 : -0.003;
+      b.vy += (heatForce + buoyancy) * dt;
+      b.vy *= 0.992;
+      b.vx += (Math.random() - 0.5) * 0.05 * dt;
+      b.vx *= 0.97;
+
+      b.y += b.vy * dt;
+      b.x += b.vx * dt;
+      b.phase += 0.03 * dt;
+
+      if (b.y < 5)   { b.y = 5;   b.vy =  Math.abs(b.vy) * 0.5; }
+      if (b.y > 160) { b.y = 160; b.vy = -Math.abs(b.vy) * 0.5; }
+      if (b.x < 5)   { b.x = 5;   b.vx =  Math.abs(b.vx); }
+      if (b.x > 45)  { b.x = 45;  b.vx = -Math.abs(b.vx); }
+
+      // CSS transition nos blobs suaviza entre frames em 120Hz
+      const el = lampElements[li].blobEls[bi];
+      const wobbleX = Math.sin(b.phase) * 3;
+      const wobbleY = Math.cos(b.phase * 1.3) * 3;
+      el.style.left   = (b.x + wobbleX) + 'px';
+      el.style.bottom = (b.y + wobbleY) + 'px';
+      el.style.borderRadius = `${50 + Math.sin(b.phase)*15}% ${50 - Math.sin(b.phase)*10}% ${50 + Math.cos(b.phase)*12}% ${50 - Math.cos(b.phase)*8}%`;
+    });
+  });
+}
+
+function captureFrame() {
+  const sample = [];
+  lampBlobs.forEach(blobs => {
+    blobs.forEach(b => {
+      sample.push(
+        Math.round(b.y + b.x + Math.random() * 8),
+        Math.round(Math.sin(b.phase) * 127 + 127 + Math.random() * 6),
+        Math.round(b.size * 3 + Math.random() * 10),
+      );
+    });
+  });
+
+  for (let i = 0; i < GRID_W * GRID_H; i++) {
+    const base_r = sample[(i * 3)     % sample.length] & 0xFF;
+    const base_g = sample[(i * 3 + 1) % sample.length] & 0xFF;
+    const base_b = sample[(i * 3 + 2) % sample.length] & 0xFF;
+    const r  = (base_r ^ (Math.random() * 32 | 0)) & 0xFF;
+    const g  = (base_g ^ (Math.random() * 32 | 0)) & 0xFF;
+    const bv = (base_b ^ (Math.random() * 32 | 0)) & 0xFF;
+    pixelCells[i].style.background = hexColor(r, g, bv);
+    rawBits += ((r  & 1) ? '1' : '0');
+    rawBits += ((g  & 1) ? '1' : '0');
+    rawBits += ((bv & 1) ? '1' : '0');
+  }
+
+  if (rawBits.length > 512) rawBits = rawBits.slice(rawBits.length - 512);
+
+  frames++;
+  totalBits += GRID_W * GRID_H * 3;
+  entropyAccum = Math.min(100, entropyAccum + 2.5 + Math.random() * 1.5);
+
+  const window64 = rawBits.slice(-64);
+  const ones = (window64.match(/1/g) || []).length;
+  const p1 = ones / 64, p0 = 1 - p1;
+  const h = p1 > 0 && p0 > 0 ? -(p1*Math.log2(p1) + p0*Math.log2(p0)) : 0;
+
+  document.getElementById('metric-frames').textContent = frames;
+  document.getElementById('metric-bits').textContent = (totalBits / 1000).toFixed(1) + 'k';
+  document.getElementById('metric-entropy').textContent = h.toFixed(3) + ' b/px';
+  document.getElementById('entropy-bar').style.width = entropyAccum + '%';
+
+  const display = rawBits.slice(-128);
+  document.getElementById('bit-stream').innerHTML =
+    display.replace(/(.{8})/g, '<span style="color:'+(Math.random()>0.5?'#10b981':'#3b82f6')+'">$1</span> ');
+}
+
+async function updateHash() {
+  if (!rawBits || rawBits.length < 64) return;
+  const raw = rawBits.slice(-128);
+  try {
+    const data = new TextEncoder().encode(raw);
+    const hashBuf = await crypto.subtle.digest('SHA-256', data);
+    const hashHex = Array.from(new Uint8Array(hashBuf))
+      .map(b => b.toString(16).padStart(2,'0')).join('');
+    document.getElementById('hash-raw').textContent = raw.slice(0, 48) + '…';
+    document.getElementById('hash-256').textContent = hashHex;
+    document.getElementById('hash-key').textContent = hashHex.slice(0, 64);
+    seeds++;
+    document.getElementById('metric-seeds').textContent = seeds;
+  } catch {
+    const fakeHex = Array.from({length:32}, () =>
+      (Math.random()*256|0).toString(16).padStart(2,'0')).join('');
+    document.getElementById('hash-256').textContent = fakeHex;
+    document.getElementById('hash-key').textContent = fakeHex.slice(0,64);
+  }
+}
+
+let lastTime = null;
+function animLoop(ts) {
+  if (!running) return;
+  // MAX_DT = 1.5 evita trancos em spikes de GC e telas 120Hz
+  const dt = lastTime ? Math.min((ts - lastTime) / 16.67, MAX_DT) : 1;
+  lastTime = ts;
+  physicsStep(dt);
+  requestAnimationFrame(animLoop);
+}
+
+function startSim() {
+  running = true;
+  lastTime = null;
+  requestAnimationFrame(animLoop);
+  captureInterval = setInterval(captureFrame, 400);
+  hashInterval    = setInterval(updateHash,   1200);
+  document.getElementById('ctrl-btn').textContent = '⏹ Desligar Lâmpadas';
+  document.getElementById('status-text').textContent = 'Simulação em execução — coletando entropia…';
+}
+
+function stopSim() {
+  running = false;
+  clearInterval(captureInterval);
+  clearInterval(hashInterval);
+  document.getElementById('ctrl-btn').textContent = '🌋 Ligar Lâmpadas';
+  document.getElementById('status-text').textContent = 'Simulação parada';
+}
+
+function toggleSimulation() { if (running) stopSim(); else startSim(); }
+function takeSnapshot() { captureFrame(); updateHash(); }
+</script>
+</body>
+</html>
